@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Produtividade — Line Haul</title>
+<style>
+  :root {
+    --navy: #0D1B2A;
+    --orange: #E8521A;
+    --amber: #F4A621;
+    --teal: #1B7A6E;
+    --green: #1E9B5E;
+    --red: #D93025;
+    --white: #FFFFFF;
+    --bg: #F0F4F8;
+    --surface: #FFFFFF;
+    --card: #F8FAFB;
+    --border: #E2E8EE;
+    --text: #1A2E42;
+    --text2: #5A7184;
+    --text3: #94A3B0;
+    --radius: 10px;
+    --shadow: 0 1px 4px rgba(13,27,42,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: var(--navy); padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 50; }
+  .header-logo { width: 32px; height: 32px; background: var(--orange); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .header-logo svg { width: 18px; height: 18px; fill: white; }
+  .header-title { font-size: 15px; font-weight: 600; color: white; flex: 1; }
+  .header-sub { font-size: 12px; color: rgba(255,255,255,0.45); }
+  .sync-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.55); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .sync-dot.loading { background: var(--amber); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* NAV */
+  .nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 0; overflow-x: auto; }
+  .nav-btn { padding: 14px 18px; font-size: 13px; font-weight: 500; color: var(--text2); border: none; background: transparent; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: all .15s; }
+  .nav-btn:hover { color: var(--text); }
+  .nav-btn.active { color: var(--orange); border-bottom-color: var(--orange); }
+
+  /* LAYOUT */
+  .main { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+
+  /* KPI ROW */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .kpi-card { background: var(--surface); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .kpi-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .kpi-val { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+  .kpi-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  /* SECTION HEADER */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; }
+
+  /* FILTERS */
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .filters input, .filters select { height: 34px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--surface); outline: none; }
+  .filters input { min-width: 180px; flex: 1; }
+  .filters input:focus, .filters select:focus { border-color: var(--orange); }
+
+  /* ANALYST GRID */
+  .analyst-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .analyst-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; cursor: pointer; transition: all .15s; box-shadow: var(--shadow); }
+  .analyst-card:hover { border-color: var(--orange); box-shadow: 0 4px 12px rgba(232,82,26,0.12); transform: translateY(-1px); }
+  .analyst-card.selected { border-color: var(--orange); border-width: 2px; }
+  .card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .card-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2; }
+  .card-meta { font-size: 11px; color: var(--text3); }
+  .score-pill { margin-left: auto; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .pill-green { background: #E8F8EE; color: #1E9B5E; }
+  .pill-amber { background: #FEF4E4; color: #C07D0A; }
+  .pill-red { background: #FDECEA; color: #D93025; }
+  .pill-gray { background: var(--card); color: var(--text3); }
+  .metrics-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .mm { background: var(--card); border-radius: 7px; padding: 7px 9px; }
+  .mm-label { font-size: 10px; color: var(--text3); margin-bottom: 2px; }
+  .mm-val { font-size: 14px; font-weight: 600; color: var(--text); }
+  .bar-wrap { height: 3px; background: var(--border); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+  .no-data { font-size: 11px; color: var(--text3); text-align: center; padding: 10px 0; }
+
+  /* DETAIL PANEL */
+  .detail-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow); }
+  .detail-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .detail-avatar { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; }
+  .detail-name { font-size: 17px; font-weight: 700; color: var(--text); }
+  .detail-meta { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .detail-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .dm { background: var(--card); border-radius: 8px; padding: 11px 13px; border: 1px solid var(--border); }
+  .dm-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .dm-val { font-size: 20px; font-weight: 700; color: var(--text); }
+  .dm-bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .dm-bar-fill { height: 100%; border-radius: 2px; }
+  .chk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .chk-item { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 4px 0; }
+  .chk-icon { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 9px; font-weight: 700; }
+  .chk-ok { background: #E8F8EE; color: var(--green); }
+  .chk-fail { background: #FDECEA; color: var(--red); }
+
+  /* TABLE */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; box-shadow: var(--shadow); margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; background: var(--card); }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--card); }
+  .rank-num { font-weight: 700; color: var(--text3); width: 30px; }
+
+  /* CHART */
+  .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-bottom: 24px; }
+  .chart-canvas-wrap { position: relative; width: 100%; }
+
+  /* FORM */
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; max-width: 560px; box-shadow: var(--shadow); }
+  .form-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+  .form-control { width: 100%; height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--surface); outline: none; transition: border-color .15s; }
+  .form-control:focus { border-color: var(--orange); }
+  .chk-list { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .chk-label { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text2); cursor: pointer; padding: 4px 0; }
+  .chk-label input { accent-color: var(--orange); width: 14px; height: 14px; }
+
+  /* BUTTONS */
+  .btn { height: 36px; padding: 0 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface); color: var(--text); transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn:hover { background: var(--card); }
+  .btn-primary { background: var(--orange); color: white; border-color: var(--orange); }
+  .btn-primary:hover { background: #C9421A; border-color: #C9421A; }
+  .btn-sm { height: 30px; padding: 0 12px; font-size: 12px; }
+
+  /* MODAL */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(13,27,42,.55); z-index: 200; align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--surface); border-radius: 12px; padding: 22px; width: 380px; max-width: 95vw; box-shadow: 0 8px 32px rgba(13,27,42,.18); }
+  .modal h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--navy); color: white; padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; z-index: 300; transform: translateY(80px); opacity: 0; transition: all .25s; box-shadow: 0 4px 16px rgba(13,27,42,.3); }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-left: 4px solid var(--green); }
+  .toast.error { border-left: 4px solid var(--red); }
+
+  /* EMPTY */
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text3); }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+  /* TABS CONTENT */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* AVATAR inline */
+  .av-inline { width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; flex-shrink: 0; }
+
+  @media (max-width: 600px) {
+    .main { padding: 16px 12px; }
+    .form-group { grid-template-columns: 1fr; }
+    .chk-list { grid-template-columns: 1fr; }
+    .chk-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo">
+    <svg viewBox="0 0 24 24"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+  </div>
+  <div>
+    <div class="header-title">Line Haul — Produtividade</div>
+    <div class="header-sub">Mercado Livre</div>
+  </div>
+  <div class="sync-status" id="syncStatus">
+    <div class="sync-dot loading" id="syncDot"></div>
+    <span id="syncText">Conectando…</span>
+  </div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" data-tab="dashboard">Visão geral</button>
+  <button class="nav-btn" data-tab="ranking">Ranking</button>
+  <button class="nav-btn" data-tab="lancamentos">Lançamentos</button>
+  <button class="nav-btn" data-tab="registro">Registrar turno</button>
+</nav>
+
+<main class="main">
+
+  <!-- DASHBOARD -->
+  <div class="tab-content active" id="tab-dashboard">
+    <div class="kpi-row" id="kpiRow"></div>
+    <div class="section-header">
+      <span class="section-title">Analistas do time</span>
+      <button class="btn btn-sm btn-primary" id="btnAddAnalista">+ Novo analista</button>
+    </div>
+    <div class="filters">
+      <input type="search" id="searchAnalista" placeholder="Buscar analista…">
+      <select id="filterTurno"><option value="">Todos os turnos</option><option>Manhã</option><option>Tarde</option><option>Noite</option></select>
+      <select id="filterScore"><option value="">Qualquer score</option><option value="high">Excelente ≥85</option><option value="mid">Regular 65–84</option><option value="low">Atenção &lt;65</option><option value="none">Sem registro</option></select>
+    </div>
+    <div class="analyst-grid" id="analystGrid"></div>
+    <div id="detailPanel"></div>
+  </div>
+
+  <!-- RANKING -->
+  <div class="tab-content" id="tab-ranking">
+    <div class="section-header"><span class="section-title">Ranking de desempenho</span></div>
+    <div class="table-wrap"><table id="rankingTable"></table></div>
+    <div class="chart-wrap">
+      <div class="section-title" style="margin-bottom:12px">Score por analista</div>
+      <div class="chart-canvas-wrap" style="height:240px"><canvas id="rankChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- LANÇAMENTOS -->
+  <div class="tab-content" id="tab-lancamentos">
+    <div class="section-header"><span class="section-title">Lançamentos por analista</span></div>
+    <div class="table-wrap"><table id="lancTable"></table></div>
+    <div class="chart-wrap">
+      <div class="section-title" style="margin-bottom:12px">Distribuição de lançamentos</div>
+      <div class="chart-canvas-wrap" id="lancChartWrap" style="height:320px"><canvas id="lancChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- REGISTRO -->
+  <div class="tab-content" id="tab-registro">
+    <div class="section-header"><span class="section-title">Registrar turno</span></div>
+    <div class="form-card">
+      <div class="form-row">
+        <label class="form-label">Analista</label>
+        <select class="form-control" id="regAnalista"></select>
+      </div>
+      <div class="form-group">
+        <div class="form-row">
+          <label class="form-label">Data</label>
+          <input type="date" class="form-control" id="regData">
+        </div>
+        <div class="form-row">
+          <label class="form-label">Turno</label>
+          <select class="form-control" id="regTurno"><option>Manhã</option><option>Tarde</option><option>Noite</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label" style="margin-bottom:8px">Checklist concluído</label>
+        <div class="chk-list" id="regChecklist"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label" style="margin-bottom:8px">Lançamentos</label>
+        <div class="form-group">
+          <div><label class="form-label">CPT</label><input type="number" class="form-control" id="regCpt" min="0" value="0"></div>
+          <div><label class="form-label">ETC</label><input type="number" class="form-control" id="regEtc" min="0" value="0"></div>
+          <div><label class="form-label">Infrutífero</label><input type="number" class="form-control" id="regInf" min="0" value="0"></div>
+          <div><label class="form-label">Divergência</label><input type="number" class="form-control" id="regDiv" min="0" value="0"></div>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:18px">
+        <div><label class="form-label">OOT's monitorados</label><input type="number" class="form-control" id="regOot" min="0" value="0"></div>
+        <div><label class="form-label">Passagem de turno (%)</label><input type="number" class="form-control" id="regPass" min="0" max="100" value="100"></div>
+      </div>
+      <button class="btn btn-primary" id="btnSalvarReg" style="width:100%">Salvar registro</button>
+    </div>
+  </div>
+
+</main>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3>Novo analista</h3>
+    <div class="form-row"><label class="form-label">Nome</label><input type="text" class="form-control" id="mNome" placeholder="Nome completo"></div>
+    <div class="form-group">
+      <div><label class="form-label">Turno</label><select class="form-control" id="mTurno"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
+      <div><label class="form-label">Início</label><input type="date" class="form-control" id="mInicio"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="btnCancelModal">Cancelar</button>
+      <button class="btn btn-primary" id="btnSaveModal">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const GS_URL = 'https://script.google.com/a/macros/mercadolivre.com/s/AKfycbxBHGx2whawbRnfCWTdAQca37Jj-kRlPm5BOEv6o28WJtwjtY1kd7DSZ2S-NIY8-zIn/exec';
+
+const CHECKLIST_ITEMS = [
+  {id:'prog_inicio',label:'Programação +24h (início)'},
+  {id:'carros',label:'Chegada de carros'},
+  {id:'patio',label:'Validação time de pátio'},
+  {id:'placas_ini',label:'Placas (início)'},
+  {id:'prog_meio',label:'Programação +24h (meio)'},
+  {id:'oot',label:'Monitor OOT'},
+  {id:'placas_meio',label:'Placas (meio)'},
+  {id:'prog_fim',label:'Programação +24h (fim)'},
+  {id:'placas_fim',label:'Placas (fim)'},
+  {id:'fechamento',label:'Fechamento de turno'},
+];
+
+const PALETTE = ['#2a78d6','#1B7A6E','#E8521A','#9333ea','#1E9B5E','#d97706','#e34948','#0891b2','#7c3aed','#be185d','#065f46','#92400e','#1e3a8a','#831843','#134e4a','#78350f','#1e40af','#166534','#7f1d1d','#164e63','#3b0764','#422006','#1a2e42','#4c1d95'];
+
+const TURNOS = ['Manhã','Tarde','Noite'];
+
+const DEFAULT_ANALYSTS = [
+  'Willian','Isabelle','Bruno Scarpari','Rafaella','Vinicius Varela',
+  'Sarah','Diego','Giovana','Roni','Franciele','Brenda','Jonathan',
+  'Kleber','Leticia','Vanessa','Celio','Natalia','Andre',
+  'Bruno Evangelista','Matheus','Vinicius','Itálo','Felipe Pratis','Alisson'
+].map((name, i) => [i+1, name, TURNOS[i%3], '2025-01-01', PALETTE[i%PALETTE.length]]);
+
+let analysts = [];
+let turnos = [];
+let nextAnalistaId = 100;
+let nextTurnoId = 1000;
+let selectedAnalyst = null;
+let rankChartInst = null, lancChartInst = null;
+let saving = false;
+
+// ── UTILS ──────────────────────────────────────────────────
+function initials(name){ return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+function scoreColor(s){ if(s==null) return '#94A3B0'; if(s>=85) return '#1E9B5E'; if(s>=65) return '#C07D0A'; return '#D93025'; }
+function pillClass(s){ if(s==null) return 'pill-gray'; if(s>=85) return 'pill-green'; if(s>=65) return 'pill-amber'; return 'pill-red'; }
+function analystTurnos(id){ return turnos.filter(x=>x[0]===id); }
+function scoreFor(id){
+  const ts = analystTurnos(id);
+  if(!ts.length) return null;
+  const avg = (arr,fn) => arr.reduce((s,x)=>s+fn(x),0)/arr.length;
+  // row: [id, analista, turnoA, data, turno, chkPct, cpt, etc, inf, div, oots, passagem]
+  const chk  = avg(ts, x => parseFloat(x[5])||0);
+  const pass = avg(ts, x => parseFloat(x[11])||0);
+  const oot  = Math.min(100, avg(ts, x => (parseFloat(x[10])||0)*8));
+  const div  = Math.max(0, 100 - avg(ts, x => parseFloat(x[9])||0)*5);
+  return Math.round(chk*0.35 + pass*0.25 + oot*0.2 + div*0.2);
+}
+
+function showToast(msg, type='success'){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(()=>{ t.className='toast'; }, 3000);
+}
+
+// ── SYNC ───────────────────────────────────────────────────
+function setSyncStatus(state, text){
+  document.getElementById('syncDot').className = 'sync-dot' + (state==='ok'?'':(' '+state));
+  document.getElementById('syncText').textContent = text;
+}
+
+async function gsRequest(payload){
+  const resp = await fetch(GS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(payload),
+    mode:'no-cors'
+  });
+}
+
+async function gsGet(){
+  const resp = await fetch(GS_URL+'?action=listar', { mode:'no-cors' });
+}
+
+async function loadData(){
+  setSyncStatus('loading','Carregando…');
+  try {
+    // With no-cors we can't read responses, so we seed from defaults if empty
+    // and rely on local state. For full read-back, the script must be deployed
+    // with Allow all access via doGet.
+    if(analysts.length === 0){
+      analysts = DEFAULT_ANALYSTS.map(r => ({
+        id: r[0], name: r[1], turno: r[2], inicio: r[3], color: r[4]
+      }));
+      nextAnalistaId = analysts.length + 1;
+    }
+    setSyncStatus('ok', 'Sincronizado');
+    renderAll();
+  } catch(e){
+    setSyncStatus('error','Erro de conexão');
+    showToast('Erro ao carregar dados. Usando modo offline.','error');
+    if(analysts.length===0){
+      analysts = DEFAULT_ANALYSTS.map(r=>({id:r[0],name:r[1],turno:r[2],inicio:r[3],color:r[4]}));
+    }
+    renderAll();
+  }
+}
+
+async function saveTurno(row){
+  try {
+    await gsRequest({ action:'salvarTurno', row });
+    setSyncStatus('ok','Sincronizado');
+  } catch(e){
+    setSyncStatus('error','Erro ao salvar');
+  }
+}
+
+async function saveAnalista(row){
+  try {
+    await gsRequest({ action:'salvarAnalista', row });
+  } catch(e){}
+}
+
+// ── RENDER KPI ─────────────────────────────────────────────
+function renderKPIs(){
+  const total = analysts.length;
+  const scores = analysts.map(a=>scoreFor(a.id)).filter(s=>s!==null);
+  const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : null;
+  const semReg = analysts.filter(a=>!analystTurnos(a.id).length).length;
+  const totalLanc = turnos.reduce((s,t)=>s+(+t[6])+(+t[7])+(+t[8])+(+t[9]),0);
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Analistas</div><div class="kpi-val">${total}</div><div class="kpi-sub">no time</div></div>
+    <div class="kpi-card"><div class="kpi-label">Score médio</div><div class="kpi-val" style="color:${scoreColor(avg)}">${avg||'—'}</div><div class="kpi-sub">de 100 pts</div></div>
+    <div class="kpi-card"><div class="kpi-label">Com registro</div><div class="kpi-val">${total-semReg}</div><div class="kpi-sub">de ${total}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Sem registro</div><div class="kpi-val" style="color:${semReg?'#C07D0A':'#1E9B5E'}">${semReg}</div><div class="kpi-sub">aguardando</div></div>
+    <div class="kpi-card"><div class="kpi-label">Lançamentos</div><div class="kpi-val">${totalLanc}</div><div class="kpi-sub">total</div></div>
+    <div class="kpi-card"><div class="kpi-label">Turnos</div><div class="kpi-val">${turnos.length}</div><div class="kpi-sub">registrados</div></div>
+  `;
+}
+
+// ── RENDER GRID ─────────────────────────────────────────────
+function renderGrid(){
+  const search = document.getElementById('searchAnalista').value.toLowerCase();
+  const turnoF = document.getElementById('filterTurno').value;
+  const scoreF = document.getElementById('filterScore').value;
+  let filtered = analysts.filter(a=>{
+    if(search && !a.name.toLowerCase().includes(search)) return false;
+    if(turnoF && a.turno!==turnoF) return false;
+    const s = scoreFor(a.id);
+    if(scoreF==='high' && (s==null||s<85)) return false;
+    if(scoreF==='mid' && (s==null||s<65||s>=85)) return false;
+    if(scoreF==='low' && (s==null||s>=65)) return false;
+    if(scoreF==='none' && s!==null) return false;
+    return true;
+  });
+  const grid = document.getElementById('analystGrid');
+  if(!filtered.length){ grid.innerHTML='<div class="empty-state"><div class="empty-icon">🔍</div>Nenhum analista encontrado.</div>'; return; }
+  grid.innerHTML = filtered.map(a=>{
+    const s = scoreFor(a.id);
+    const ts = analystTurnos(a.id);
+    const chkAvg = ts.length ? Math.round(ts.reduce((acc,t)=>acc+(+t[5]),0)/ts.length) : null;
+    const passAvg = ts.length ? Math.round(ts.reduce((acc,t)=>acc+(+t[11]),0)/ts.length) : null;
+    const lancAvg = ts.length ? Math.round(ts.reduce((acc,t)=>acc+(+t[6])+(+t[7])+(+t[8])+(+t[9]),0)/ts.length) : null;
+    const ootAvg = ts.length ? Math.round(ts.reduce((acc,t)=>acc+(+t[10]),0)/ts.length) : null;
+    return `<div class="analyst-card${selectedAnalyst===a.id?' selected':''}" onclick="selectAnalyst(${a.id})">
+      <div class="card-head">
+        <div class="avatar" style="background:${a.color}22;color:${a.color}">${initials(a.name)}</div>
+        <div style="flex:1;min-width:0"><div class="card-name">${a.name}</div><div class="card-meta">${a.turno} • ${ts.length} turno${ts.length!==1?'s':''}</div></div>
+        <span class="score-pill ${pillClass(s)}">${s!==null?s+'pts':'—'}</span>
+      </div>
+      ${ts.length===0
+        ? `<div class="no-data">📋 Nenhum turno registrado ainda</div>`
+        : `<div class="metrics-mini">
+          <div class="mm"><div class="mm-label">Checklist</div><div class="mm-val">${chkAvg}%</div><div class="bar-wrap"><div class="bar-fill" style="width:${chkAvg}%;background:${scoreColor(chkAvg)}"></div></div></div>
+          <div class="mm"><div class="mm-label">Passagem</div><div class="mm-val">${passAvg}%</div><div class="bar-wrap"><div class="bar-fill" style="width:${passAvg}%;background:${scoreColor(passAvg)}"></div></div></div>
+          <div class="mm"><div class="mm-label">Lanç./turno</div><div class="mm-val">${lancAvg}</div></div>
+          <div class="mm"><div class="mm-label">OOT's/turno</div><div class="mm-val">${ootAvg}</div></div>
+        </div>`}
+    </div>`;
+  }).join('');
+}
+
+function selectAnalyst(id){
+  selectedAnalyst = selectedAnalyst===id ? null : id;
+  renderGrid();
+  renderDetail();
+}
+
+function renderDetail(){
+  const panel = document.getElementById('detailPanel');
+  if(!selectedAnalyst){ panel.innerHTML=''; return; }
+  const a = analysts.find(x=>x.id===selectedAnalyst);
+  const ts = analystTurnos(a.id);
+  if(!ts.length){
+    panel.innerHTML=`<div class="detail-panel">
+      <div class="detail-head">
+        <div class="detail-avatar" style="background:${a.color}22;color:${a.color}">${initials(a.name)}</div>
+        <div><div class="detail-name">${a.name}</div><div class="detail-meta">${a.turno} • Sem registros</div></div>
+      </div>
+      <div class="empty-state" style="padding:1rem 0"><div class="empty-icon">📋</div>Vá em "Registrar turno" para incluir o primeiro registro de ${a.name.split(' ')[0]}.</div>
+    </div>`;
+    return;
+  }
+  const s = scoreFor(a.id);
+  const chkAvg = Math.round(ts.reduce((acc,t)=>acc+(+t[5]),0)/ts.length);
+  const passAvg = Math.round(ts.reduce((acc,t)=>acc+(+t[11]),0)/ts.length);
+  const ootAvg = Math.round(ts.reduce((acc,t)=>acc+(+t[10]),0)/ts.length);
+  const cptTot = ts.reduce((acc,t)=>acc+(+t[6]),0);
+  const etcTot = ts.reduce((acc,t)=>acc+(+t[7]),0);
+  const infTot = ts.reduce((acc,t)=>acc+(+t[8]),0);
+  const divTot = ts.reduce((acc,t)=>acc+(+t[9]),0);
+  const lastT = ts[ts.length-1];
+  const chkParsed = typeof lastT[5]==='object' ? lastT[5] : {};
+  const chkItems = CHECKLIST_ITEMS.map(item=>{
+    const done = chkParsed[item.id]===1||chkParsed[item.id]==='1'||chkParsed[item.id]===true;
+    return `<div class="chk-item"><div class="chk-icon ${done?'chk-ok':'chk-fail'}">${done?'✓':'✗'}</div><span style="color:var(--text2)">${item.label}</span></div>`;
+  }).join('');
+  panel.innerHTML=`<div class="detail-panel">
+    <div class="detail-head">
+      <div class="detail-avatar" style="background:${a.color}22;color:${a.color}">${initials(a.name)}</div>
+      <div style="flex:1"><div class="detail-name">${a.name}</div><div class="detail-meta">${a.turno} • ${ts.length} turno${ts.length!==1?'s':''} registrados</div></div>
+      <span class="score-pill ${pillClass(s)}" style="font-size:14px;padding:5px 14px">${s!==null?s+' pts':'—'}</span>
+    </div>
+    <div class="detail-metrics">
+      <div class="dm"><div class="dm-label">Checklist</div><div class="dm-val" style="color:${scoreColor(chkAvg)}">${chkAvg}%</div><div class="dm-bar"><div class="dm-bar-fill" style="width:${chkAvg}%;background:${scoreColor(chkAvg)}"></div></div></div>
+      <div class="dm"><div class="dm-label">Passagem</div><div class="dm-val" style="color:${scoreColor(passAvg)}">${passAvg}%</div><div class="dm-bar"><div class="dm-bar-fill" style="width:${passAvg}%;background:${scoreColor(passAvg)}"></div></div></div>
+      <div class="dm"><div class="dm-label">OOT's/turno</div><div class="dm-val">${ootAvg}</div></div>
+      <div class="dm"><div class="dm-label">CPT total</div><div class="dm-val" style="color:#1E9B5E">${cptTot}</div></div>
+      <div class="dm"><div class="dm-label">ETC total</div><div class="dm-val">${etcTot}</div></div>
+      <div class="dm"><div class="dm-label">INF total</div><div class="dm-val" style="color:#C07D0A">${infTot}</div></div>
+      <div class="dm"><div class="dm-label">DIV total</div><div class="dm-val" style="color:#D93025">${divTot}</div></div>
+    </div>
+    <div class="section-title" style="margin-bottom:10px">Último checklist — ${lastT[3]}</div>
+    <div class="chk-grid">${chkItems}</div>
+  </div>`;
+}
+
+// ── RANKING ─────────────────────────────────────────────────
+function renderRanking(){
+  const sorted = [...analysts].map(a=>({...a,score:scoreFor(a.id)})).sort((a,b)=>{
+    if(b.score==null&&a.score==null) return 0;
+    if(b.score==null) return -1;
+    if(a.score==null) return 1;
+    return b.score-a.score;
+  });
+  document.getElementById('rankingTable').innerHTML=`
+    <thead><tr><th>#</th><th>Analista</th><th>Turno</th><th>Score</th><th>Checklist</th><th>Passagem</th><th>Lançamentos</th></tr></thead>
+    <tbody>${sorted.map((a,i)=>{
+      const ts=analystTurnos(a.id);
+      const chk=ts.length?Math.round(ts.reduce((acc,t)=>acc+(+t[5]),0)/ts.length):null;
+      const pass=ts.length?Math.round(ts.reduce((acc,t)=>acc+(+t[11]),0)/ts.length):null;
+      const lanc=ts.reduce((acc,t)=>acc+(+t[6])+(+t[7])+(+t[8])+(+t[9]),0);
+      return `<tr>
+        <td class="rank-num">${i+1}</td>
+        <td><div style="display:flex;align-items:center;gap:8px">
+          <div class="av-inline" style="background:${a.color}22;color:${a.color}">${initials(a.name)}</div>${a.name}</div></td>
+        <td>${a.turno}</td>
+        <td><span class="score-pill ${pillClass(a.score)}">${a.score!=null?a.score+'pts':'—'}</span></td>
+        <td>${chk!=null?chk+'%':'—'}</td>
+        <td>${pass!=null?pass+'%':'—'}</td>
+        <td>${lanc||'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>`;
+  const withScore = sorted.filter(a=>a.score!=null);
+  if(rankChartInst) rankChartInst.destroy();
+  if(!withScore.length) return;
+  rankChartInst = new Chart(document.getElementById('rankChart'),{
+    type:'bar',
+    data:{labels:withScore.map(a=>a.name.split(' ')[0]),datasets:[{label:'Score',data:withScore.map(a=>a.score),backgroundColor:withScore.map(a=>scoreColor(a.score)+'CC'),borderRadius:5,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:100,ticks:{color:'#94A3B0'},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{color:'#94A3B0',maxRotation:45},grid:{display:false}}}}
+  });
+}
+
+// ── LANÇAMENTOS ─────────────────────────────────────────────
+function renderLancamentos(){
+  const sorted = [...analysts].map(a=>{
+    const ts=analystTurnos(a.id);
+    return {name:a.name,color:a.color,
+      cpt:ts.reduce((s,t)=>s+(+t[6]),0),etc:ts.reduce((s,t)=>s+(+t[7]),0),
+      inf:ts.reduce((s,t)=>s+(+t[8]),0),div:ts.reduce((s,t)=>s+(+t[9]),0)};
+  }).sort((a,b)=>(b.cpt+b.etc+b.inf+b.div)-(a.cpt+a.etc+a.inf+a.div));
+  document.getElementById('lancTable').innerHTML=`
+    <thead><tr><th>Analista</th><th>CPT</th><th>ETC</th><th>Infrutífero</th><th>Divergência</th><th>Total</th></tr></thead>
+    <tbody>${sorted.map(a=>`<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="av-inline" style="background:${a.color}22;color:${a.color}">${initials(a.name)}</div>${a.name}</div></td>
+      <td style="color:#1E9B5E;font-weight:600">${a.cpt||'—'}</td>
+      <td>${a.etc||'—'}</td>
+      <td style="color:#C07D0A;font-weight:600">${a.inf||'—'}</td>
+      <td style="color:#D93025;font-weight:600">${a.div||'—'}</td>
+      <td style="font-weight:700">${(a.cpt+a.etc+a.inf+a.div)||'—'}</td>
+    </tr>`).join('')}</tbody>`;
+  const withData = sorted.filter(a=>a.cpt+a.etc+a.inf+a.div>0);
+  const h = Math.max(260, withData.length*36+80);
+  document.getElementById('lancChartWrap').style.height = h+'px';
+  if(lancChartInst) lancChartInst.destroy();
+  if(!withData.length) return;
+  lancChartInst = new Chart(document.getElementById('lancChart'),{
+    type:'bar',
+    data:{labels:withData.map(a=>a.name.split(' ')[0]),datasets:[
+      {label:'CPT',data:withData.map(a=>a.cpt),backgroundColor:'#1E9B5EAA',borderRadius:0},
+      {label:'ETC',data:withData.map(a=>a.etc),backgroundColor:'#2a78d6AA',borderRadius:0},
+      {label:'INF',data:withData.map(a=>a.inf),backgroundColor:'#d97706AA',borderRadius:0},
+      {label:'DIV',data:withData.map(a=>a.div),backgroundColor:'#D93025AA',borderRadius:0},
+    ]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:11}}}},
+      scales:{x:{stacked:true,ticks:{color:'#94A3B0'},grid:{color:'rgba(0,0,0,0.05)'}},y:{stacked:true,ticks:{color:'#94A3B0'},grid:{display:false}}}}
+  });
+}
+
+// ── FORM ─────────────────────────────────────────────────────
+function renderRegForm(){
+  document.getElementById('regAnalista').innerHTML = analysts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  document.getElementById('regData').value = new Date().toISOString().slice(0,10);
+  document.getElementById('regChecklist').innerHTML = CHECKLIST_ITEMS.map(item=>`
+    <label class="chk-label"><input type="checkbox" id="chk_${item.id}" checked> ${item.label}</label>`).join('');
+}
+
+// ── EVENTS ───────────────────────────────────────────────────
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-content').forEach(d=>d.classList.remove('active'));
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    if(btn.dataset.tab==='ranking') renderRanking();
+    if(btn.dataset.tab==='lancamentos') renderLancamentos();
+  };
+});
+
+['searchAnalista','filterTurno','filterScore'].forEach(id=>{
+  const el=document.getElementById(id);
+  el.oninput=renderGrid; el.onchange=renderGrid;
+});
+
+document.getElementById('btnAddAnalista').onclick=()=>{
+  document.getElementById('mInicio').value=new Date().toISOString().slice(0,10);
+  document.getElementById('modalBg').classList.add('open');
+};
+document.getElementById('btnCancelModal').onclick=()=>document.getElementById('modalBg').classList.remove('open');
+document.getElementById('modalBg').onclick=e=>{if(e.target.id==='modalBg')document.getElementById('modalBg').classList.remove('open');};
+
+document.getElementById('btnSaveModal').onclick=()=>{
+  const name=document.getElementById('mNome').value.trim();
+  if(!name){showToast('Informe o nome.','error');return;}
+  const color=PALETTE[analysts.length%PALETTE.length];
+  const id=++nextAnalistaId;
+  const turno=document.getElementById('mTurno').value;
+  const inicio=document.getElementById('mInicio').value;
+  analysts.push({id,name,turno,inicio,color});
+  saveAnalista([id,name,turno,inicio,color]);
+  document.getElementById('modalBg').classList.remove('open');
+  document.getElementById('mNome').value='';
+  showToast(`${name} adicionado!`);
+  renderAll();
+};
+
+document.getElementById('btnSalvarReg').onclick=async()=>{
+  if(saving) return;
+  saving=true;
+  const btn=document.getElementById('btnSalvarReg');
+  btn.textContent='Salvando…'; btn.disabled=true;
+  const aid=parseInt(document.getElementById('regAnalista').value);
+  const a=analysts.find(x=>x.id===aid);
+  const chkObj={};
+  CHECKLIST_ITEMS.forEach(item=>{chkObj[item.id]=document.getElementById('chk_'+item.id).checked?1:0;});
+  const chkPct=Math.round(Object.values(chkObj).filter(Boolean).length/CHECKLIST_ITEMS.length*100);
+  const cpt=parseInt(document.getElementById('regCpt').value)||0;
+  const etc=parseInt(document.getElementById('regEtc').value)||0;
+  const inf=parseInt(document.getElementById('regInf').value)||0;
+  const div=parseInt(document.getElementById('regDiv').value)||0;
+  const oots=parseInt(document.getElementById('regOot').value)||0;
+  const passagem=parseInt(document.getElementById('regPass').value)||0;
+  const data=document.getElementById('regData').value;
+  const turno=document.getElementById('regTurno').value;
+  const id=++nextTurnoId;
+  const score=0;
+  const ts=new Date().toISOString();
+  const row=[id,aid,a.turno,data,turno,chkPct,cpt,etc,inf,div,oots,passagem,score,ts];
+  // Store chkObj reference for detail view
+  row._chk=chkObj;
+  turnos.push(row);
+  await saveTurno([id,a.name,a.turno,data,turno,chkPct,cpt,etc,inf,div,oots,passagem,scoreFor(aid),ts]);
+  ['regCpt','regEtc','regInf','regDiv','regOot'].forEach(id=>{document.getElementById(id).value=0;});
+  document.getElementById('regPass').value=100;
+  CHECKLIST_ITEMS.forEach(item=>{const el=document.getElementById('chk_'+item.id);if(el)el.checked=true;});
+  showToast('Turno salvo e sincronizado!');
+  saving=false; btn.textContent='Salvar registro'; btn.disabled=false;
+  renderAll();
+};
+
+function renderAll(){ renderKPIs(); renderGrid(); renderDetail(); renderRegForm(); }
+
+loadData();
+</script>
+</body>
+</html>
