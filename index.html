@@ -285,6 +285,22 @@
   </div>
 </div>
 
+
+<div class="modal-bg" id="modalEditBg">
+  <div class="modal">
+    <h3>Editar analista</h3>
+    <input type="hidden" id="eId">
+    <div class="form-row"><label class="form-label">Nome</label><input type="text" class="form-control" id="eNome"></div>
+    <div class="form-group">
+      <div><label class="form-label">Turno</label><select class="form-control" id="eTurno"><option>Manhã</option><option>Tarde</option><option>Noite</option></select></div>
+      <div><label class="form-label">Início</label><input type="date" class="form-control" id="eInicio"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" id="btnCancelEdit">Cancelar</button>
+      <button class="btn btn-primary" id="btnSaveEdit">Salvar alterações</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -482,6 +498,7 @@ function renderGrid(){
       <div class="card-head">
         <div class="avatar" style="background:${a.color}22;color:${a.color}">${initials(a.name)}</div>
         <div style="flex:1;min-width:0"><div class="card-name">${a.name}</div><div class="card-meta">${a.turno} • ${ts.length} turno${ts.length!==1?'s':''}</div></div>
+        <button onclick="event.stopPropagation();openEdit(${a.id})" style="background:transparent;border:none;cursor:pointer;font-size:15px;padding:2px 5px;color:var(--text2)" title="Editar">✏️</button>
         <span class="score-pill ${pillClass(s)}">${s!==null?s+'pts':'—'}</span>
       </div>
       ${ts.length===0
@@ -722,6 +739,32 @@ document.getElementById('btnSalvarReg').onclick=async()=>{
 };
 
 function renderAll(){ renderKPIs(); renderGrid(); renderDetail(); renderRegForm(); }
+
+
+function openEdit(id){
+  const a = analysts.find(x=>x.id===id);
+  if(!a) return;
+  document.getElementById('eId').value = a.id;
+  document.getElementById('eNome').value = a.name;
+  document.getElementById('eTurno').value = a.turno;
+  document.getElementById('eInicio').value = a.inicio;
+  document.getElementById('modalEditBg').classList.add('open');
+}
+
+document.getElementById('btnCancelEdit').onclick=()=>document.getElementById('modalEditBg').classList.remove('open');
+document.getElementById('modalEditBg').onclick=e=>{if(e.target.id==='modalEditBg')document.getElementById('modalEditBg').classList.remove('open');};
+document.getElementById('btnSaveEdit').onclick=()=>{
+  const id = parseInt(document.getElementById('eId').value);
+  const name = document.getElementById('eNome').value.trim();
+  if(!name){showToast('Informe o nome.','error');return;}
+  const turno = document.getElementById('eTurno').value;
+  const inicio = document.getElementById('eInicio').value;
+  const a = analysts.find(x=>x.id===id);
+  if(a){ a.name=name; a.turno=turno; a.inicio=inicio; }
+  document.getElementById('modalEditBg').classList.remove('open');
+  showToast(`${name} atualizado!`);
+  renderAll();
+};
 
 loadData();
 </script>
